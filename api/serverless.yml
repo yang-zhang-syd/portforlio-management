@@ -1,0 +1,70 @@
+service: portfolio-management-api
+
+custom:
+  tableName: 'stocks-table-${self:provider.stage}'
+  dynamodb:
+    start:
+      migrate: true
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: ap-southeast-2
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        - { "Fn::GetAtt": ["StocksDynamoDBTable", "Arn" ] }
+  environment:
+    STOCKS_TABLE: ${self:custom.tableName}
+
+functions:
+  app:
+    handler: index.handler
+    events:
+      - http: ANY /
+      - http: 'ANY {proxy+}'
+  getStock:
+    handler: index.handler
+    events:
+      - http: 'GET /stock/{proxy+}'
+  createStock:
+    handler: index.handler
+    events:
+      - http: 'POST /stock'
+
+resources:
+  Resources:
+    StocksDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: symbol
+            AttributeType: S
+          # -
+          #   AttributeName: market
+          #   AttributeType: S
+          # -
+          #   AttributeName: currency
+          #   AttributeType: S
+          # -
+          #   AttributeName: description
+          #   AttributeType: S
+        KeySchema:
+          -
+            AttributeName: symbol
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${self:custom.tableName}
+
+plugins:
+  - serverless-offline
+  - serverless-dynamodb-local
